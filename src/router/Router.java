@@ -79,7 +79,11 @@ public class Router {
      * @param updateInterval	Time interval for sending routing updates to neighboring routers (in milli-seconds)
      */
 	public Router(int routerId, String serverName, int serverPort, int updateInterval) {
-		// to be completed
+		// set arrays to nothing
+		linkcost = new int[0];
+		nexthop = new int[0];
+		mincost = new int[0][0];
+		
 		id = routerId;
 		update = updateInterval;
 		try {
@@ -180,8 +184,16 @@ public class Router {
 	private void broadcast() {
 		// TODO Auto-generated method stub
 		
-		DiGraph graph = new DiGraph();
-		
+		DvrPacket p = new DvrPacket(this.id, DvrPacket.SERVER, DvrPacket.ROUTE);
+		timer = new Timer();
+		try {
+			// send packet to server
+			oos.writeObject(p);
+			oos.flush();
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 
@@ -226,6 +238,7 @@ public class Router {
      * 
      */
 	public static void main(String[] args) {
+		
 		// default parameters
 		int routerId = 0;
 		String serverName = "localhost";
@@ -252,6 +265,7 @@ public class Router {
 		// start the router
 		// the start() method blocks until the router receives a QUIT message
 		Router router = new Router(routerId, serverName, serverPort, updateInterval);
+		
 		RtnTable rtn = router.start();
 		System.out.println("Router terminated normally");
 		
