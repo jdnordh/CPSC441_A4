@@ -68,6 +68,8 @@ public class Router {
 	
 	private boolean timerExpire;
 	
+	private Timer timer;
+	
     /**
      * Constructor to initialize the router instance 
      * 
@@ -106,6 +108,7 @@ public class Router {
 	public RtnTable start() {		
 		// send HELLO to server
 		DvrPacket p = new DvrPacket(this.id, DvrPacket.SERVER, DvrPacket.HELLO);
+		timer = new Timer();
 		try {
 			// send packet to server
 			oos.writeObject(p);
@@ -118,7 +121,6 @@ public class Router {
 			}
 			
 			//Start timer
-			Timer timer = new Timer();
 			timer.schedule(new Task(this), this.update);
 			//running while loop
 			
@@ -155,8 +157,19 @@ public class Router {
 			e.printStackTrace();
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
+		} finally {
+			//Clean up
+			
+			try {
+				oos.close();
+				ois.close();
+				socket.close();
+			} catch (Exception e) {}
+			
+			
+			// cancel timer
+			timer.cancel();
 		}
-		
 		
 		
 		
@@ -166,6 +179,8 @@ public class Router {
 
 	private void broadcast() {
 		// TODO Auto-generated method stub
+		
+		DiGraph graph = new DiGraph();
 		
 	}
 
@@ -177,22 +192,28 @@ public class Router {
 	private void processDvr(DvrPacket dvr){
 		
 		if (dvr.sourceid == DvrPacket.SERVER){
-			// update link cost vector
-			// update min cost vector
-			//this.linkcost = dvr.
+			this.linkcost = dvr.getMinCost();
+			
+			this.updateMinCost();
 		}
 		else {
 			//update min cost vector
-			for (int i = 0; i < dvr.mincost.length; i++){
-				this.mincost[dvr.sourceid][i] = dvr.mincost[i];
-			}
+			this.mincost[dvr.sourceid] = dvr.getMinCost();
 			
 		}
 		
 		//timer updates
-		
+		timer.cancel();
+		timer.schedule(new Task(this), this.update);
+		this.timerExpire = false;
 	}
 	
+	private void updateMinCost() {
+		// TODO Auto-generated method stub
+		// Use bellman ford algorithm
+	}
+
+
 	/**
 	 * Tell the router the timer expired
 	 */
