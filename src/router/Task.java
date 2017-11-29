@@ -12,7 +12,7 @@ public class Task extends TimerTask {
 
 	@Override
 	public void run() {
-		//System.out.println("Timer expire");
+		System.out.println("Timer expire");
 		router.expire();
 	}
 

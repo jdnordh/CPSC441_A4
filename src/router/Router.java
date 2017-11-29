@@ -69,6 +69,8 @@ public class Router {
 	private boolean timerExpire;
 	
 	private Timer timer;
+
+	private int numRouters;
 	
     /**
      * Constructor to initialize the router instance 
@@ -109,7 +111,8 @@ public class Router {
      * 
      * @return The forwarding table of the router
      */
-	public RtnTable start() {		
+	public RtnTable start() {	
+		System.out.println("Router " + id + " has started");
 		// send HELLO to server
 		DvrPacket p = new DvrPacket(this.id, DvrPacket.SERVER, DvrPacket.HELLO);
 		timer = new Timer();
@@ -117,20 +120,30 @@ public class Router {
 			// send packet to server
 			oos.writeObject(p);
 			oos.flush();
-			
+			System.out.println("Router " + id + " sending hello");
 			p = (DvrPacket) ois.readObject();
 			if (p.type != DvrPacket.HELLO){
 				// Something bad happened
 				System.exit(1);
 			}
 			
+			System.out.println("Router " + id + " received hello");
+			//get link cost from hello packet
+			this.linkcost = p.getMinCost();
+			this.numRouters = linkcost.length;
+			
+			this.initializeArrays();
+			
+			
 			//Start timer
 			timer.schedule(new Task(this), this.update);
+			
+			
 			//running while loop
 			
 			p = (DvrPacket) ois.readObject();
 			while ( p.type != DvrPacket.QUIT){
-				
+				System.out.println("Router " + id + " looping");
 				//process the packet
 				this.processDvr(p);
 				
@@ -177,19 +190,43 @@ public class Router {
 		
 		
 		
-		return new RtnTable();
+		return new RtnTable(mincost[this.id], nexthop);
+	}
+
+/**
+ * Initialize the arrays
+ */
+	private void initializeArrays() {
+		//set other arrays to proper size
+		nexthop = new int[numRouters];
+		mincost = new int[numRouters][numRouters];
+		
+		for (int i = 0; i < this.numRouters; i++){
+			nexthop[i] = -1;
+			for (int j = 0; j < mincost[i].length; j++){
+				mincost[i][j] = 999;
+			}
+		}
 	}
 
 
+	/**
+	 * Sends this routers mincost to all connected routers
+	 */
 	private void broadcast() {
-		// TODO Auto-generated method stub
+		// send this routers local mincost to all other routers
 		
-		DvrPacket p = new DvrPacket(this.id, DvrPacket.SERVER, DvrPacket.ROUTE);
+		DvrPacket p = null;
 		timer = new Timer();
 		try {
-			// send packet to server
-			oos.writeObject(p);
-			oos.flush();
+			for (int i = 0; i < this.linkcost.length; i++){
+				if (i != this.id){
+					p = new DvrPacket(this.id, i, DvrPacket.ROUTE);
+					p.setMinCost(this.mincost[this.id]);
+					oos.writeObject(p);
+					oos.flush();
+				}
+			}			
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -202,27 +239,39 @@ public class Router {
 	 * @param dvr Packet
 	 */
 	private void processDvr(DvrPacket dvr){
-		
+		//TODO
 		if (dvr.sourceid == DvrPacket.SERVER){
 			this.linkcost = dvr.getMinCost();
-			
+			this.broadcast();
 			this.updateMinCost();
 		}
 		else {
 			//update min cost vector
 			this.mincost[dvr.sourceid] = dvr.getMinCost();
-			
+			this.updateMinCost();
 		}
-		
-		//timer updates
-		timer.cancel();
-		timer.schedule(new Task(this), this.update);
-		this.timerExpire = false;
 	}
 	
 	private void updateMinCost() {
-		// TODO Auto-generated method stub
 		// Use bellman ford algorithm
+		this.mincost[this.id][this.id] = 0;
+		
+		//set the min values
+		for (int i = 0; i < linkcost.length; i++){
+			
+			int min = 999;
+			int next = nexthop[i];
+			
+			for (int j = 0; j < mincost[i].length; j++){
+				if (min > mincost[i][j]) min = mincost[i][j];
+			}
+			
+			mincost[id][i] += min;
+			
+		}
+		
+		
+		
 	}
 
 
@@ -242,7 +291,7 @@ public class Router {
 		// default parameters
 		int routerId = 0;
 		String serverName = "localhost";
-		int serverPort = 2227;
+		int serverPort = 8887;
 		int updateInterval = 1000; //milli-seconds
 		
 		if (args.length == 4) {
